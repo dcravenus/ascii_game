@@ -12,9 +12,17 @@ def load_screen(filename):
 from screen import Screen
 SCREEN = Screen()
 
+#Use premade grids
+#import mapping
+#SCREEN = load_screen("grids/"+mapping.mapping[0][0])
+#CURRENT_MAPPING = [0,0]    
+
+#Autogenerate a maze
 import mapping
+import gen_maze
+mapping.mapping[0][0] = "gen_maze.p"
 SCREEN = load_screen("grids/"+mapping.mapping[0][0])
-CURRENT_MAPPING = [0,0]    
+CURRENT_MAPPING = [0,0]  
 
 def get_opposite_direction(direction):
     if direction == "up":
