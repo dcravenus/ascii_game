@@ -16,6 +16,15 @@ import mapping
 SCREEN = load_screen("grids/"+mapping.mapping[0][0])
 CURRENT_MAPPING = [0,0]    
 
+def get_opposite_direction(direction):
+    if direction == "up":
+        return "down"
+    elif direction == "down":
+        return "up"
+    elif direction == "left":
+        return "right"
+    elif direction == "right":
+        return "left"
 
 def change_screen(win, pt, direction):
     if direction == "up":
@@ -41,6 +50,10 @@ def change_screen(win, pt, direction):
             draw_grid_obj(win, [i,j], SCREEN.grid[i][j])
 
     win.addch(pt[0], pt[1], PLAYER.char)
+
+    if not is_move_valid(pt):
+        return move_char(win, pt, PLAYER.char, get_opposite_direction(direction))
+
     return pt
           
 
@@ -98,13 +111,14 @@ curses.noecho()
 curses.curs_set(0)
 win.border(0)
 
-win.addch(PLAYER.position[0],PLAYER.position[1], PLAYER.char)
 
 key = 0
 
 for i in range(SCREEN.height):
     for j in range(SCREEN.width):
         draw_grid_obj(win, [i,j], SCREEN.grid[i][j])
+
+win.addch(PLAYER.position[0],PLAYER.position[1], PLAYER.char)
 
 while key != 27:
     win.border(0)
