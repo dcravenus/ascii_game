@@ -1,63 +1,90 @@
+import pickle
 import curses
 from curses import KEY_RIGHT, KEY_LEFT, KEY_UP, KEY_DOWN
+from player import Player
 
-WIN_HEIGHT = 7
-WIN_WIDTH = 7
-
-PLAYER_CHAR = 'X'
+PLAYER = Player()
 WALL_CHAR = '█'
 
-row1 = ['EMPTY', 'EMPTY', 'WALL', 'WALL', 'WALL']
-row2 = ['WALL', 'EMPTY', 'EMPTY', 'WALL', 'WALL']
-row3 = ['WALL', 'EMPTY', 'EMPTY', 'WALL', 'WALL']
-row4 = ['WALL', 'EMPTY', 'WALL', 'WALL', 'WALL']
-row5 = ['WALL', 'EMPTY', 'WALL', 'WALL', 'WALL']
-grid = [row1, row2, row3, row4, row5]
+def load_screen(filename):
+    return pickle.load(open(filename, "rb"))
 
+from screen import Screen
+SCREEN = Screen()
+
+import mapping
+SCREEN = load_screen("grids/"+mapping.mapping[0][0])
+CURRENT_MAPPING = [0,0]    
+
+
+def change_screen(win, pt, direction):
+    if direction == "up":
+        CURRENT_MAPPING[0] = CURRENT_MAPPING[0]-1
+        pt[0] = SCREEN.height
+    elif direction == "down":
+        CURRENT_MAPPING[0] = CURRENT_MAPPING[0]+1
+        pt[0] = 1
+    elif direction == "left":
+        CURRENT_MAPPING[1] = CURRENT_MAPPING[1]-1
+        pt[1] = SCREEN.width
+    elif direction == "right":
+        CURRENT_MAPPING[1] = CURRENT_MAPPING[1]+1
+        pt[1] = 1
+
+    map_coords = mapping.mapping[CURRENT_MAPPING[0]][CURRENT_MAPPING[1]]
+    screen = load_screen("grids/"+map_coords)
+    SCREEN.grid = screen.grid   
+    win.erase()
+    win.border(0)
+    for i in range(SCREEN.height):
+        for j in range(SCREEN.width):
+            draw_grid_obj(win, [i,j], SCREEN.grid[i][j])
+
+    win.addch(pt[0], pt[1], PLAYER.char)
+    return pt
+          
 
 def remove_char(win,location):
     win.addch(location[0],location[1],' ')
 
-def move_left(win, pt, char):
-    new_x = pt[1]-1
-    if new_x < 1:
-        new_x = WIN_WIDTH-2
-    if grid[pt[0]-1][new_x-1] != "WALL":
-        remove_char(win, pt)
-        pt[1] = new_x
-        win.addch(pt[0], pt[1], char)
+def is_move_valid(pt):
+    is_valid = True
+    if SCREEN.grid[pt[0]-1][pt[1]-1] == "WALL":
+        is_valid = False
+    return is_valid
 
-def move_right(win, pt, char):
-    new_x = pt[1]+1
-    if new_x > WIN_WIDTH-2:
-        new_x = 1
-    if grid[pt[0]-1][new_x-1] != "WALL":
-        remove_char(win, pt)
-        pt[1] = new_x
-        win.addch(pt[0], pt[1], char)
+def is_point_offscreen(pt):
+    is_offscreen = False
+    if pt[0] < 1 or pt[0] > SCREEN.height:
+        is_offscreen = True
+    if pt[1] < 1 or pt[1] > SCREEN.width:
+        is_offscreen = True   
+    return is_offscreen
 
-def move_up(win, pt, char):
-    new_y = pt[0]-1
-    if new_y < 1:
-        new_y = WIN_HEIGHT-2
-    if grid[new_y-1][pt[1]-1] != "WALL":
-        remove_char(win, pt)
-        pt[0] = new_y
-        win.addch(pt[0], pt[1], char)
+def move_char(win, pt, char, direction):
+    new_pt = pt
+    if direction == "up":
+        new_pt = [pt[0]-1, pt[1]]
+    elif direction == "down":
+        new_pt = [pt[0]+1, pt[1]]
+    elif direction == "left":
+        new_pt = [pt[0], pt[1]-1]
+    elif direction == "right":
+        new_pt = [pt[0], pt[1]+1]        
 
-def move_down(win, pt, char):
-    new_y = pt[0]+1
-    if new_y > WIN_HEIGHT-2:
-        new_y = 1
-    if grid[new_y-1][pt[1]-1] != "WALL":
-        remove_char(win, pt)
-        pt[0] = new_y
-        win.addch(pt[0], pt[1], char)
+    if is_point_offscreen(new_pt):
+        return change_screen(win, new_pt, direction)
+    else:
+        if is_move_valid(new_pt):
+            remove_char(win, pt)
+            win.addch(new_pt[0], new_pt[1], char)
+            return new_pt
+    return pt
 
 def draw_grid_obj(win, pt, obj):
     char = " "
     if obj == "PLAYER":
-        char = PLAYER_CHAR
+        char = PLAYER.char
     if obj == "WALL":
         char = WALL_CHAR
     if obj == "EMPTY":
@@ -65,36 +92,41 @@ def draw_grid_obj(win, pt, obj):
     win.addch(pt[0]+1, pt[1]+1, char)
 
 curses.initscr()
-win = curses.newwin(WIN_HEIGHT, WIN_WIDTH, 0, 0)
+win = curses.newwin(SCREEN.height+2, SCREEN.width+2, 0, 0)
 win.keypad(1)
 curses.noecho()
 curses.curs_set(0)
 win.border(0)
 
-location = [1,1]
-win.addch(location[0],location[1], PLAYER_CHAR)
+win.addch(PLAYER.position[0],PLAYER.position[1], PLAYER.char)
 
 key = 0
 
-for i in range(WIN_HEIGHT-2):
-    for j in range(WIN_WIDTH-2):
-        draw_grid_obj(win, [i,j], grid[i][j])
+for i in range(SCREEN.height):
+    for j in range(SCREEN.width):
+        draw_grid_obj(win, [i,j], SCREEN.grid[i][j])
 
 while key != 27:
+    win.border(0)
 
     if key == KEY_LEFT:
-        move_left(win, location, PLAYER_CHAR)
+        PLAYER.position = move_char(win, PLAYER.position, PLAYER.char, "left")
 
     if key == KEY_RIGHT:
-        move_right(win, location, PLAYER_CHAR)
+        PLAYER.position = move_char(win, PLAYER.position, PLAYER.char, "right")
 
     if key == KEY_UP:
-        move_up(win, location, PLAYER_CHAR)
+        PLAYER.position = move_char(win, PLAYER.position, PLAYER.char, "up")
 
     if key == KEY_DOWN:
-        move_down(win, location, PLAYER_CHAR)
+        PLAYER.position = move_char(win, PLAYER.position, PLAYER.char, "down")
+
+    win.addstr(0,0, str(PLAYER.position[0]))
+    win.addstr(0,1, str(","))
+    win.addstr(0,2, str(PLAYER.position[1]))
 
     key = win.getch()
+
 
 
 curses.endwin()
